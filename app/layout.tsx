@@ -2,23 +2,30 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { getSetting } from "@/lib/orders";
+import { getSiteTheme, THEME_DEFAULTS } from "@/lib/theme";
 import { readCart } from "@/lib/cart";
 import Chrome from "@/components/Chrome";
 import SessionProvider from "@/components/SessionProvider";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "PocketLens" };
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const name = await getSetting("store_name", "PocketLens");
+    return { title: name };
+  } catch {
+    return { title: "PocketLens" };
+  }
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const user = session?.user as { id?: string; name?: string | null; email?: string; role?: string } | undefined;
-  let storeName = "PocketLens";
-  let announcement = "";
+  let theme = THEME_DEFAULTS;
   let maintenance = false;
   try {
-    storeName = await getSetting("store_name", "PocketLens");
-    announcement = await getSetting("announcement", "");
+    theme = await getSiteTheme();
     maintenance = (await getSetting("maintenance", "0")) === "1";
   } catch {
     /* build without DB: chrome renders, pages show a clear error */
@@ -44,8 +51,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ) : (
             <Chrome
               user={user ? { name: user.name ?? null, email: user.email ?? "", role: user.role ?? "customer" } : null}
-              storeName={storeName}
-              announcement={announcement}
+              storeName={theme.store_name}
+              announcement={theme.announcement}
+              logoUrl={theme.logo_url}
+              accentColor={theme.accent_color}
+              footerTagline={theme.footer_tagline}
               cartCount={(cart?.items ?? []).reduce((n, i) => n + i.qty, 0)}
             >
               {children}

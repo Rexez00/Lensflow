@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { db , type Row} from "@/lib/db";
+import { db, type Row } from "@/lib/db";
 import { safe } from "@/lib/server";
 import DbError from "@/components/DbError";
 import ProductCard from "@/components/ProductCard";
@@ -16,20 +16,40 @@ export default async function ProductPage({ params }: { params: { slug: string }
     const p = rows[0] as Row;
     const revs = await sql`SELECT * FROM reviews WHERE product_id = ${p.id} AND approved = TRUE ORDER BY id DESC`;
     const ups = await sql`SELECT * FROM products WHERE id <> ${p.id} AND active = TRUE LIMIT 3`;
-    return { p, revs, ups };
+    let variants: Row[] = [];
+    let images: Row[] = [];
+    try {
+      variants = (await sql`SELECT * FROM product_variants WHERE product_id = ${p.id} AND active = TRUE ORDER BY position, id`) as Row[];
+    } catch { variants = []; }
+    try {
+      images = (await sql`SELECT url FROM product_images WHERE product_id = ${p.id} ORDER BY position, id`) as Row[];
+    } catch { images = []; }
+    return { p, revs, ups, variants, images };
   });
   if (down) return <DbError />;
   if (!data) notFound();
-  const { p, revs, ups } = data;
+  const { p, revs, ups, variants, images } = data;
   const vp = {
     id: p.id as number, name: p.name as string, price_cents: p.price_cents as number,
     old_cents: (p.old_cents as number | null) ?? null, stock: p.stock as number,
     rating: Number(p.rating), rating_count: p.rating_count as number, description: (p.description as string) ?? "",
+    image_url: String((p as Row).image_url ?? ""),
   };
+  const vv = (variants as Row[]).map((v) => ({
+    id: v.id as number,
+    name: String(v.name),
+    sku: String(v.sku ?? ""),
+    effective_price: ((v.price_cents as number | null) ?? (p.price_cents as number)) as number,
+    effective_stock: ((v.stock as number | null) ?? (p.stock as number)) as number,
+  }));
+  const gallery = [...new Set([
+    ...(images as Row[]).map((r) => String(r.url)).filter(Boolean),
+    String((p as Row).image_url ?? ""),
+  ].filter(Boolean))];
   return (
     <>
       <div className="crumbs"><a href="/">Home</a> / <a href="/products">Products</a> / <b>{vp.name}</b></div>
-      <ProductView p={vp} revCount={(revs as unknown[]).length} />
+      <ProductView p={vp} revCount={(revs as unknown[]).length} variants={vv} images={gallery} />
       <div className="rowhead"><h2>Reviews</h2><a href="/reviews">Show all</a></div>
       {(revs as Row[]).slice(0, 3).map((r) => (
         <article className="card rev" key={r.id as number}>
@@ -44,6 +64,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <ProductCard key={u.id as number} p={{
             id: u.id as number, name: u.name as string, slug: u.slug as string,
             sub: (u.sub as string) ?? "", price_cents: u.price_cents as number, stock: u.stock as number,
+            image_url: String((u as Row).image_url ?? ""), badge: String((u as Row).badge ?? ""),
           }} />
         ))}
       </div>

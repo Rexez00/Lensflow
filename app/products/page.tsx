@@ -20,17 +20,24 @@ export default async function Products({ searchParams }: { searchParams: Record<
     if (searchParams.max) push("price_cents <= ?", Math.round(Number(searchParams.max) * 100));
     if (searchParams.stock === "1") conds.push("stock > 0");
     const order = { lo: "price_cents", hi: "price_cents DESC", rate: "rating DESC" }[searchParams.sort ?? ""] ?? "rating_count DESC";
-    const items = await sql.unsafe(
-      `SELECT p.*, c.slug AS catslug FROM products p LEFT JOIN categories c ON c.id = p.cat_id WHERE ${conds.join(" AND ")} ORDER BY ${order}`,
+    const limit = 12;
+    const page = Math.max(1, Number(searchParams.page || 1));
+    const totalRows = await sql.unsafe(
+      `SELECT COUNT(*)::int AS c FROM products p WHERE ${conds.join(" AND ")}`,
       args as never[]
     );
-    return { cats, items };
+    const total = ((totalRows as Row[])[0]?.c as number) ?? 0;
+    const items = await sql.unsafe(
+      `SELECT p.*, c.slug AS catslug FROM products p LEFT JOIN categories c ON c.id = p.cat_id WHERE ${conds.join(" AND ")} ORDER BY ${order} LIMIT $${i++} OFFSET $${i++}`,
+      [...args, limit, (page - 1) * limit] as never[]
+    );
+    return { cats, items, total, page, pages: Math.max(1, Math.ceil(total / limit)) };
   });
   if (down || !data) return <DbError />;
   const q = (k: string) => searchParams[k] ?? "";
   const link = (patch: Record<string, string>) => {
     const sp = new URLSearchParams();
-    for (const k of ["cat", "q", "min", "max", "stock", "sort"]) {
+    for (const k of ["cat", "q", "min", "max", "stock", "sort", "page"]) {
       const v = patch[k] !== undefined ? patch[k] : searchParams[k];
       if (v) sp.set(k, v);
     }
@@ -66,18 +73,30 @@ export default async function Products({ searchParams }: { searchParams: Record<
         </aside>
         <div>
           <div className="toolbar">
-            <span className="count">{(data.items as unknown[]).length} products</span>
+            <span className="count">{data.total} products</span>
             <SortSelect value={q("sort") || "feat"} params={{ cat: q("cat"), q: q("q"), min: q("min"), max: q("max"), stock: q("stock") }} />
           </div>
           {(data.items as unknown[]).length ? (
+            <>
             <div className="pgrid">
               {(data.items as Row[]).map((p) => (
                 <ProductCard key={p.id as number} p={{
                   id: p.id as number, name: p.name as string, slug: p.slug as string,
                   sub: (p.sub as string) ?? "", price_cents: p.price_cents as number, stock: p.stock as number,
+                  image_url: (p.image_url as string) ?? "", badge: (p.badge as string) ?? "",
                 }} />
               ))}
             </div>
+            {data.pages > 1 && (
+              <nav aria-label="Pagination" style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20, flexWrap: "wrap" }}>
+                {Array.from({ length: data.pages }, (_, n) => n + 1).map((n) => (
+                  <a key={n} href={link({ page: n === 1 ? "" : String(n) })}
+                    aria-current={n === data.page ? "page" : undefined}
+                    className="btn ghost" style={n === data.page ? { borderColor: "var(--sa-accent)" } : undefined}>{n}</a>
+                ))}
+              </nav>
+            )}
+            </>
           ) : <div className="empty">No products match — try clearing a filter.</div>}
         </div>
       </div>

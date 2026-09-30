@@ -25,11 +25,11 @@ export default async function Orders() {
         <tbody>
           {out.map(({ o, label }) => (
             <tr key={o.id as number}>
-              <td><b>{label}</b><br /><small style={{ color: "var(--sa-accent)" }}>{String(o.code)}</small></td>
+              <td><a href={`/account/orders/${String(o.code)}`}><b>{label}</b><br /><small style={{ color: "var(--sa-accent)" }}>{String(o.code)}</small></a></td>
               <td>{String(o.created).slice(0, 10)}</td>
               <td>{money(o.total_cents as number)}</td>
               <td><span className={"status-pill " + (PILL[String(o.status)] ?? "st-mut")}>{String(o.status)}</span></td>
-              <td><a className="btn ghost" style={{ padding: "8px 16px" }} href="/account/tickets">Ticket</a></td>
+              <td><a className="btn ghost" style={{ padding: "8px 16px" }} href={`/account/orders/${String(o.code)}`}>View</a></td>
             </tr>
           ))}
           {out.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--sa-ink-soft)" }}>No orders yet.</td></tr>}

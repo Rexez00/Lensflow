@@ -12,6 +12,11 @@ export function LensThumb() {
   );
 }
 
+export function PImg({ src, alt, tall }: { src: string; alt: string; tall?: boolean }) {
+  if (!src) return <LensThumb />;
+  return <img src={src} alt={alt} className={tall ? "pimg tall" : "pimg"} loading="lazy" />;
+}
+
 export type CardProduct = {
   id: number;
   name: string;
@@ -19,6 +24,8 @@ export type CardProduct = {
   sub: string;
   price_cents: number;
   stock: number;
+  image_url?: string;
+  badge?: string;
 };
 
 export default function ProductCard({ p }: { p: CardProduct }) {
@@ -33,7 +40,10 @@ export default function ProductCard({ p }: { p: CardProduct }) {
   return (
     <div className="card pcard">
       <a href={"/product/" + p.slug}>
-        <div className="thumb"><LensThumb /></div>
+        <div className="thumb pthumb">
+          {p.badge ? <span className="pbadge">{p.badge}</span> : null}
+          <PImg src={p.image_url ?? ""} alt={p.name} />
+        </div>
         <h3>{p.name}</h3>
         <small>{p.sub}</small>
       </a>

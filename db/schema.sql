@@ -34,10 +34,23 @@ CREATE TABLE IF NOT EXISTS products(
   rating NUMERIC NOT NULL DEFAULT 5.0,
   rating_count INTEGER NOT NULL DEFAULT 0,
   description TEXT DEFAULT '',
-  active BOOLEAN NOT NULL DEFAULT TRUE
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  image_url TEXT NOT NULL DEFAULT '',
+  badge TEXT NOT NULL DEFAULT '',
+  featured BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 CREATE INDEX IF NOT EXISTS idx_products_cat ON products(cat_id);
+
+-- Product media & merchandising (idempotent; safe on existing databases)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS badge TEXT DEFAULT '';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Backwards-compatible migrations for existing databases
+ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS badge TEXT NOT NULL DEFAULT '';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS carts(
   id SERIAL PRIMARY KEY,
@@ -163,3 +176,68 @@ CREATE TABLE IF NOT EXISTS settings(
   key TEXT PRIMARY KEY,
   value TEXT DEFAULT ''
 );
+
+-- Real product variants (backend-driven, not hardcoded pills).
+-- price_cents NULL = inherit product price; stock NULL = inherit product stock.
+CREATE TABLE IF NOT EXISTS product_variants(
+  id SERIAL PRIMARY KEY,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sku TEXT DEFAULT '',
+  price_cents INTEGER CHECK (price_cents IS NULL OR price_cents >= 0),
+  stock INTEGER CHECK (stock IS NULL OR stock >= 0),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  position INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(product_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
+
+-- Real multi-image gallery (position-ordered). Falls back to products.image_url.
+CREATE TABLE IF NOT EXISTS product_images(
+  id SERIAL PRIMARY KEY,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_images_product ON product_images(product_id);
+
+-- Saved customer addresses (checkout + account).
+CREATE TABLE IF NOT EXISTS addresses(
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label TEXT DEFAULT '',
+  full_name TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL DEFAULT '',
+  line1 TEXT NOT NULL DEFAULT '',
+  line2 TEXT DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  region TEXT DEFAULT '',
+  postal TEXT DEFAULT '',
+  country TEXT NOT NULL DEFAULT 'Morocco',
+  created TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_addresses_user ON addresses(user_id);
+
+-- Shippable methods (admin-managed, selected at checkout).
+CREATE TABLE IF NOT EXISTS shipping_methods(
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  price_cents INTEGER NOT NULL DEFAULT 0,
+  eta TEXT DEFAULT '',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  position INTEGER NOT NULL DEFAULT 0
+);
+
+-- Order snapshot extensions (shipping / payment / address). Idempotent.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_name TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_line1 TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_line2 TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_region TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_postal TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_method TEXT DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT '';

@@ -1,0 +1,10 @@
+import postgres from "postgres";
+const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+console.log("settings", await sql`SELECT key, value FROM settings WHERE key IN ('maintenance','store_name')`);
+console.log("feat", await sql`SELECT name, featured, rating_count, active FROM products WHERE active = TRUE ORDER BY featured DESC, rating_count DESC LIMIT 5`);
+const r = await fetch("http://127.0.0.1:3106/");
+const t = await r.text();
+console.log("home status", r.status, "len", t.length);
+console.log("pcard count", (t.match(/pcard/g) || []).length);
+console.log("has maintenance msg", t.includes("We&rsquo;ll be right back") || t.includes("right back"));
+await sql.end();

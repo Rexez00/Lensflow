@@ -4,9 +4,12 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   ["/admin", "📊 Dashboard"],
+  ["/admin/design", "🎨 Design & Content"],
   ["/admin/orders", "🧾 Orders"],
   ["/admin/products", "📦 Products"],
   ["/admin/categories", "🏷️ Categories"],
+  ["/admin/shipping", "🚚 Shipping"],
+  ["/admin/payments", "💳 Payments"],
   ["/admin/reviews", "⭐ Reviews"],
   ["/admin/tickets", "💬 Tickets"],
   ["/admin/blog", "📰 Blog"],

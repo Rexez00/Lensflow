@@ -32,25 +32,82 @@ export async function setCouponAction(form: FormData) {
   redirect("/checkout");
 }
 
-export async function placeOrderAction() {
+export async function placeOrderAction(form?: FormData) {
   const cart = await getOrCreateCart();
   const { lines, total: subtotal } = await enrichCart(cart);
   if (!lines.length) redirect("/cart");
   const sql = db();
   const user = await meRow();
-  // Stock validation against authoritative rows
+  // Stock validation against authoritative rows, including variant overrides.
   for (const l of lines) {
     const r = await sql`SELECT stock FROM products WHERE id = ${l.id} AND active = TRUE`;
     const row = r[0] as Row | undefined;
-    if (!row || (row.stock as number) < l.qty) redirect("/cart?error=stock");
+    let stock = row ? (row.stock as number) : 0;
+    try {
+      const vr = await sql`SELECT stock FROM product_variants WHERE product_id = ${l.id} AND name = ${l.variant} AND active = TRUE`;
+      if (vr[0] && (vr[0] as Row).stock != null) stock = (vr[0] as Row).stock as number;
+    } catch { /* old DB without variants table */ }
+    if (!row || stock < l.qty) redirect("/cart?error=stock");
   }
+  const f = form ?? new FormData();
+  const get = (k: string) => String(f.get(k) ?? "").trim();
+  // Saved address shortcut for signed-in users.
+  let full_name = get("full_name").slice(0, 120);
+  let phone = get("phone").slice(0, 40);
+  let line1 = get("line1").slice(0, 200);
+  let line2 = get("line2").slice(0, 200);
+  let city = get("city").slice(0, 120);
+  let region = get("region").slice(0, 120);
+  let postal = get("postal").slice(0, 20);
+  let country = get("country").slice(0, 80) || "Morocco";
+  let email = user ? String(user.email) : get("email").toLowerCase().slice(0, 160);
+  const addressId = Number(get("address_id") || 0);
+  if (user && addressId) {
+    const ar = await sql`SELECT * FROM addresses WHERE id = ${addressId} AND user_id = ${Number(user.id)}`;
+    const a = ar[0] as Row | undefined;
+    if (a) {
+      full_name = full_name || String(a.full_name ?? "");
+      phone = phone || String(a.phone ?? "");
+      line1 = line1 || String(a.line1 ?? "");
+      line2 = line2 || String(a.line2 ?? "");
+      city = city || String(a.city ?? "");
+      region = region || String(a.region ?? "");
+      postal = postal || String(a.postal ?? "");
+      country = get("country") || String(a.country ?? "Morocco");
+    }
+  }
+  const shippingName = get("shipping_method") || "Standard";
+  const paymentId = get("payment_method") || "";
+  const couponInput = get("coupon");
+  if (couponInput) cart.coupon = couponInput.toUpperCase().slice(0, 32);
+  if (!full_name || !phone || !line1 || !city || !country) {
+    redirect("/checkout?error=address");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    redirect("/checkout?error=email");
+  }
+  const { getShippingMethod } = await import("@/lib/shipping");
+  const ship = (await getShippingMethod(shippingName)) ?? { name: "Standard", price_cents: 0 };
+  const { providerById } = await import("@/lib/payments");
+  const provider = providerById(paymentId);
+  if (!provider) redirect("/checkout?error=payment");
+  if (provider.id === "cmi") redirect("/checkout?error=cmi");
+  if (provider.id === "stripe" && !(await import("@/lib/stripe")).stripeOn()) redirect("/checkout?error=payment");
+  if (provider.id === "demopay" && (await import("@/lib/stripe")).stripeOn()) redirect("/checkout?error=payment");
   const { total, discount, couponCode } = await checkoutTotals(
-    subtotal, user ? { reseller_status: String(user.reseller_status ?? "none") } : null, cart.coupon);
-  const email = user ? String(user.email) : "";
+    subtotal,
+    user ? { reseller_status: String(user.reseller_status ?? "none") } : null,
+    cart.coupon,
+    ship.price_cents
+  );
   const uid = user ? Number(user.id) : null;
   const order = await sql.begin(async (tx) => {
-    const ins = await tx`INSERT INTO orders(user_id, email, kind, subtotal_cents, discount_cents, total_cents, coupon)
-      VALUES(${uid}, ${email}, 'shop', ${subtotal}, ${discount}, ${total}, ${couponCode}) RETURNING id`;
+    const ins = await tx`INSERT INTO orders(user_id, email, kind, subtotal_cents, discount_cents, total_cents, coupon,
+        shipping_name, shipping_phone, shipping_line1, shipping_line2, shipping_city, shipping_region,
+        shipping_postal, shipping_country, shipping_method, shipping_cents, payment_method)
+      VALUES(${uid}, ${email}, 'shop', ${subtotal}, ${discount}, ${total}, ${couponCode},
+        ${full_name}, ${phone}, ${line1}, ${line2}, ${city}, ${region},
+        ${postal}, ${country}, ${ship.name}, ${ship.price_cents}, ${provider.id}) RETURNING id`;
     const oid = (ins[0] as Row).id as number;
     const code = "PL-" + (9000 + oid);
     await tx`UPDATE orders SET code = ${code} WHERE id = ${oid}`;
@@ -60,7 +117,13 @@ export async function placeOrderAction() {
     }
     return { id: oid, code };
   });
+  const { saveCart } = await import("@/lib/cart");
+  await saveCart(cart);
   await clearCart(cart);
+  // Cash on Delivery needs no online payment step — confirm immediately.
+  if (provider.id === "cod") {
+    redirect(`/checkout/success?code=${order.code}&method=cod`);
+  }
   redirect(`/pay/${order.code}`);
 }
 
@@ -87,14 +150,49 @@ export async function payBalanceAction(code: string) {
   await sql`UPDATE users SET balance_cents = balance_cents - ${o.total_cents} WHERE id = ${user.id}`;
   await sql`INSERT INTO transactions(user_id, kind, label, amount_cents)
     VALUES(${user.id}, 'purchase', ${"Order " + o.code}, ${-(o.total_cents as number)})`;
+  await sql`UPDATE orders SET payment_method = 'balance' WHERE id = ${o.id}`;
   await markPaid(o.id as number);
-  redirect(`/checkout/success?code=${o.code}`);
+  redirect(`/checkout/success?code=${o.code}&method=balance`);
 }
 
 export async function demoPayAction(code: string) {
   const o = await ownOrder(code);
+  await db()`UPDATE orders SET payment_method = 'demopay' WHERE id = ${o.id}`;
   await markPaid(o.id as number);
-  redirect(`/checkout/success?code=${code}`);
+  redirect(`/checkout/success?code=${code}&method=demopay`);
+}
+
+export async function confirmCodAction(code: string) {
+  const o = await ownOrder(code);
+  await db()`UPDATE orders SET payment_method = 'cod' WHERE id = ${o.id}`;
+  // COD stays pending until delivery — no stock decrement yet.
+  // Stock decrements on markPaid (admin marks paid/completed on delivery).
+  redirect(`/checkout/success?code=${code}&method=cod`);
+}
+
+export async function saveAddressAction(form: FormData) {
+  const user = await meRow();
+  if (!user) redirect("/login?next=/account/addresses");
+  const get = (k: string, max: number) => String(form.get(k) || "").trim().slice(0, max);
+  const full_name = get("full_name", 120);
+  const phone = get("phone", 40);
+  const line1 = get("line1", 200);
+  const city = get("city", 120);
+  if (!full_name || !phone || !line1 || !city) redirect("/account/addresses?error=required");
+  await db()`INSERT INTO addresses(user_id, label, full_name, phone, line1, line2, city, region, postal, country)
+    VALUES(${Number(user.id)}, ${get("label", 40) || "Home"}, ${full_name}, ${phone}, ${line1},
+      ${get("line2", 200)}, ${city}, ${get("region", 120)}, ${get("postal", 20)}, ${get("country", 80) || "Morocco"})`;
+  revalidatePath("/account/addresses");
+  revalidatePath("/checkout");
+  redirect("/account/addresses?ok=saved");
+}
+
+export async function deleteAddressAction(id: number) {
+  const user = await meRow();
+  if (!user) redirect("/login");
+  await db()`DELETE FROM addresses WHERE id = ${id} AND user_id = ${Number(user.id)}`;
+  revalidatePath("/account/addresses");
+  revalidatePath("/checkout");
 }
 
 export async function startStripeAction(code: string) {
@@ -104,7 +202,7 @@ export async function startStripeAction(code: string) {
     code: String(o.code),
     items: items.map((i) => ({ name: String(i.name), qty: Number(i.qty), price: Number(i.price_cents) })),
   });
-  await db()`UPDATE orders SET stripe_session = ${s.id} WHERE id = ${o.id}`;
+  await db()`UPDATE orders SET stripe_session = ${s.id}, payment_method = 'stripe' WHERE id = ${o.id}`;
   redirect(s.url!);
 }
 

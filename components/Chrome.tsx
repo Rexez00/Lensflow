@@ -12,7 +12,7 @@ const LENS = (
 );
 
 type User = { name: string | null; email: string; role: string } | null;
-type Line = { id: number; name: string; slug: string; variant: string; qty: number; price: number; line: number };
+type Line = { id: number; name: string; slug: string; variant: string; qty: number; price: number; line: number; image_url?: string };
 
 const NAV = [
   { href: "/", label: "Discover", nav: "home" },
@@ -23,12 +23,16 @@ const NAV = [
 
 export default function Chrome({
   user, storeName, announcement, cartCount: initialCount, children,
+  logoUrl = "", accentColor = "", footerTagline = "",
 }: {
   user: User;
   storeName: string;
   announcement: string;
   cartCount: number;
   children: React.ReactNode;
+  logoUrl?: string;
+  accentColor?: string;
+  footerTagline?: string;
 }) {
   const path = usePathname();
   const [count, setCount] = useState(initialCount);
@@ -37,7 +41,7 @@ export default function Chrome({
   const [drawer, setDrawer] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [term, setTerm] = useState("");
-  const [hits, setHits] = useState<Line[]>([]);
+  const [hits, setHits] = useState<{ id: number; slug: string; name: string; price_cents: number; image_url?: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
   const [cookieOpen, setCookieOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -119,9 +123,12 @@ export default function Chrome({
     nav === "home" ? path === "/" : path.startsWith("/" + (nav === "products" ? "product" : nav)) || path.startsWith("/" + nav);
 
   return (
-    <div className="app">
+    <div className="app" style={accentColor ? ({ ["--sa-accent" as string]: accentColor } as React.CSSProperties) : undefined}>
       <aside className="rail">
-        <a className="brand" href="/">LENSFL<em>O</em>W</a>
+        <a className="brand" href="/">{logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={storeName} style={{ height: 28, maxWidth: 160, objectFit: "contain" }} />
+        ) : <>{storeName.slice(0, 6).toUpperCase()}<em>{storeName.slice(6, 7) || "O"}</em>{storeName.slice(7).toUpperCase() || "W"}</>}</a>
         {NAV.map((n) => (
           <a key={n.href} className={"rlink" + (active(n.nav) ? " active" : "")} href={n.href}>{n.label}</a>
         ))}
@@ -139,7 +146,10 @@ export default function Chrome({
       <div className="main">
         <div className="topbar">
           <button className="iconbtn m-only" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">☰</button>
-          <a className="brand m-only" href="/" style={{ fontSize: 17, padding: 0 }}>LENSFL<em>O</em>W</a>
+          <a className="brand m-only" href="/" style={{ fontSize: 17, padding: 0 }}>{logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={storeName} style={{ height: 24, maxWidth: 130, objectFit: "contain" }} />
+          ) : storeName}</a>
           <button className="search-pill" onClick={() => setSearchOpen(true)}><span style={{ flex: 1, textAlign: "left" }}>Search products…</span></button>
           <div className="acts">
             <button className="iconbtn" onClick={toggleScheme} aria-label="Toggle theme">◐</button>
@@ -161,8 +171,11 @@ export default function Chrome({
           {children}
           <footer className="appfoot">
             <div className="cols">
-              <div><span className="brand" style={{ padding: "0 0 10px", display: "block" }}>{storeName}</span>
-                <p style={{ fontSize: 13, color: "var(--sa-ink-soft)" }}>Pocket-size fisheye and macro lenses for your phone.</p></div>
+              <div>{logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt={storeName} style={{ height: 30, marginBottom: 10 }} />
+              ) : <span className="brand" style={{ padding: "0 0 10px", display: "block" }}>{storeName}</span>}
+                <p style={{ fontSize: 13, color: "var(--sa-ink-soft)" }}>{footerTagline || "Pocket-size fisheye and macro lenses for your phone."}</p></div>
               <div><h4>Shop</h4><a href="/">Home</a><a href="/products">Products</a><a href="/reviews">Reviews</a><a href="/status">Status</a></div>
               <div><h4>Account</h4><a href="/account">Dashboard</a><a href="/account/orders">Orders</a><a href="/account/tickets">Tickets</a></div>
               <div><h4>Legal</h4><a href="/legal">Terms</a><a href="/blog">Blog</a>{user?.role === "admin" ? <a href="/admin">Admin</a> : null}</div>
@@ -185,7 +198,10 @@ export default function Chrome({
             <div className="empty">Your cart is empty.<br /><br /><a className="btn" href="/products">Browse lenses</a></div>
           ) : lines.map((i) => (
             <div className="citem" key={i.id + i.variant}>
-              <div className="thumb">{LENS}</div>
+              <div className="thumb" style={{ overflow: "hidden" }}>{i.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={i.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : LENS}</div>
               <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 14 }}>{i.name}</b><br />
                 <small>{i.variant} × {i.qty}</small><br /><b>{money(i.line)}</b></div>
               <button className="iconbtn" onClick={() => rmItem(i.id)} aria-label="Remove">✕</button>
@@ -203,8 +219,11 @@ export default function Chrome({
             onKeyDown={(e) => { if (e.key === "Enter") location.href = "/products?q=" + encodeURIComponent(term); }} />
           <div style={{ marginTop: 12 }}>
             {hits.map((p) => (
-              <a className="pick" key={p.id} href={"/product/" + p.slug}><div className="thumb">{LENS}</div>
-                <div><h3>{p.name}</h3><b>{money(p.price)}</b></div></a>
+              <a className="pick" key={p.id} href={"/product/" + p.slug}><div className="thumb" style={{ overflow: "hidden" }}>{p.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : LENS}</div>
+                <div><h3>{p.name}</h3><b>{money(p.price_cents)}</b></div></a>
             ))}
           </div>
         </div></div>

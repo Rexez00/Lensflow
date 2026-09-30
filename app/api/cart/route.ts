@@ -45,6 +45,15 @@ export async function POST(req: NextRequest) {
       const rows = await db()`SELECT id, stock, active FROM products WHERE id = ${id}`;
       const p = rows[0] as Row | undefined;
       if (!p || !p.active) return NextResponse.json({ ok: false }, { status: 404 });
+      // Validate variant against backend variants when the table has entries.
+      // Unknown variants are rejected if the product defines real variants,
+      // otherwise any label (e.g. legacy "Standard") is accepted.
+      try {
+        const vrows = (await db()`SELECT name FROM product_variants WHERE product_id = ${id} AND active = TRUE`) as Row[];
+        if (vrows.length > 0 && !vrows.some((v) => String(v.name) === variant)) {
+          return NextResponse.json({ ok: false, error: "unknown variant" }, { status: 400 });
+        }
+      } catch { /* table may not exist yet on old DBs — accept */ }
       const f = cart.items.find((i) => i.id === id && i.variant === variant);
       if (f) f.qty = Math.min(99, f.qty + qty);
       else cart.items.push({ id, qty, variant });

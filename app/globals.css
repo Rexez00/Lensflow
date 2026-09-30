@@ -267,6 +267,18 @@ footer.appfoot .base{border-top:1px solid var(--sa-line);margin-top:20px;padding
 @media(max-width:1023px){.bgrid2{grid-template-columns:1fr}}
 code{background:var(--sa-hover);padding:2px 8px;border-radius:8px;font-size:13px}
 
+/* ---- product photos & badges ---- */
+.pthumb{position:relative;overflow:hidden;border-radius:14px}
+.pimg{width:100%;height:180px;object-fit:cover;display:block}
+.pimg.tall{height:220px}
+.pimg-large{width:100%;height:100%;min-height:340px;object-fit:cover;display:block}
+.pbadge{position:absolute;top:8px;left:8px;background:#111;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;z-index:2}
+html[data-scheme="dark"] .pbadge{background:#fff;color:#111}
+
+/* ---- design editor ---- */
+.dsec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--sa-ink-soft);margin:16px 0 8px}
+@media(max-width:1023px){.design-wrap{grid-template-columns:1fr !important}}
+
 /* ---- Next.js chrome specifics ---- */
 .m-only{display:none}
 @media(max-width:1023px){.m-only{display:inline-flex}.topbar .asignin{display:none}}

@@ -111,25 +111,42 @@ export type EnrichedLine = {
   qty: number;
   price: number;
   line: number;
+  image_url: string;
+  max_stock: number;
 };
 
-/** Resolve cart items against authoritative DB rows (display + totals). */
+/** Resolve cart items against authoritative DB rows (display + totals).
+ *  Variant pricing is backend-driven: product_variants.price_cents overrides
+ *  the base product price when set, otherwise the base price applies. */
 export async function enrichCart(cart: Cart | null): Promise<{ lines: EnrichedLine[]; total: number }> {
   if (!cart || cart.items.length === 0) return { lines: [], total: 0 };
   const ids = [...new Set(cart.items.map((i) => i.id))];
   const rows = await db()`SELECT * FROM products WHERE id = ANY(${ids}) AND active = TRUE`;
   const byId = new Map<number, Row>();
   for (const r of rows) byId.set(r.id as number, r as Row);
+  let variants: Row[] = [];
+  try {
+    variants = (await db()`SELECT * FROM product_variants WHERE product_id = ANY(${ids}) AND active = TRUE`) as Row[];
+  } catch {
+    variants = [];
+  }
+  const vmap = new Map<string, Row>();
+  for (const v of variants) vmap.set(`${v.product_id as number}::${String(v.name)}`, v);
   const lines: EnrichedLine[] = [];
   let total = 0;
   for (const it of cart.items) {
     const p = byId.get(it.id);
     if (!p) continue;
     const qty = Math.max(1, Math.min(99, it.qty));
-    const price = p.price_cents as number;
+    const v = vmap.get(`${it.id}::${it.variant || "Standard"}`);
+    const price = v?.price_cents != null ? (v.price_cents as number) : (p.price_cents as number);
+    const baseStock = p.stock as number;
+    const vStock = v?.stock != null ? (v.stock as number) : baseStock;
     lines.push({
       id: it.id, name: p.name as string, slug: p.slug as string,
       variant: it.variant || "Standard", qty, price, line: price * qty,
+      image_url: (p.image_url as string) ?? "",
+      max_stock: Math.max(0, vStock ?? baseStock ?? 0),
     });
     total += price * qty;
   }

@@ -1,13 +1,14 @@
 import { db , type Row} from "./db";
 import { AFFILIATE_PCT, RESELLER_PCT } from "./shop";
 
-export type Totals = { total: number; discount: number; couponCode: string };
+export type Totals = { total: number; discount: number; couponCode: string; shipping: number };
 
 /** Server-side totals from authoritative DB state. Never trusts the browser. */
 export async function checkoutTotals(
   subtotal: number,
   user: { reseller_status?: string } | null,
-  couponCode: string
+  couponCode: string,
+  shippingCents = 0
 ): Promise<Totals> {
   let discount = 0;
   let code = "";
@@ -23,7 +24,8 @@ export async function checkoutTotals(
       discount += Math.floor(((subtotal - discount) * (coupon.pct as number)) / 100);
     }
   }
-  return { total: Math.max(0, subtotal - discount), discount, couponCode: code };
+  const shipping = Math.max(0, shippingCents);
+  return { total: Math.max(0, subtotal - discount + shipping), discount, couponCode: code, shipping };
 }
 
 /** Idempotent payment completion: stock, top-ups, subscriptions, commissions. */

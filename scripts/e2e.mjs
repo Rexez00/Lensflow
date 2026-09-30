@@ -29,11 +29,13 @@ const page = await cust.newPage();
 // 1. storefront renders with real DB data
 await page.goto(BASE + "/");
 await seen(page, "Unleash");
-ok("3 featured cards", (await page.locator(".feat .pcard").count()) === 3);
+await page.waitForFunction(() => document.querySelectorAll(".feat .pcard").length === 3, null, { timeout: 20000 });
+ok("3 featured cards", true);
 await page.goto(BASE + "/products?cat=fisheye");
 await seen(page, "0.67X Wide Lens");
 await page.goto(BASE + "/product/macro-pro");
 ok("product page", (await page.getByRole("heading", { name: "Macro Lens Pro" }).count()) > 0);
+ok("real variants", (await page.getByText("With calibration chart").count()) > 0);
 
 // 2. register + dashboard
 await page.goto(BASE + "/register");
@@ -54,17 +56,52 @@ await page.click(".stepper button >> nth=1");
 await page.waitForFunction(() => document.querySelector(".stepper b")?.textContent === "2");
 ok("qty bumped to 2", true);
 
-// 4. checkout with coupon, demopay, success
+// 4. checkout with address + shipping + coupon, demopay, success
 await page.goto(BASE + "/checkout");
+await seen(page, "Shipping address");
+await page.fill('input[name="full_name"]', "E2E Tester");
+await page.fill('input[name="phone"]', "+212600000000");
+await page.fill('input[name="line1"]', "12 Rue Test");
+await page.fill('input[name="city"]', "Casablanca");
 await page.fill('input[name="coupon"]', "SAVE10");
-await page.click('button:has-text("Apply")');
-await seen(page, "SAVE10");
+// choose the labelled test gateway explicitly (default is COD)
+await page.check('input[name="payment_method"][value="demopay"]');
 await Promise.all([page.waitForURL("**/pay/**"), page.click('button:has-text("Place order")')]);
 const payUrl = page.url();
 ok("pay page", /\/pay\/PL-/.test(payUrl));
 await Promise.all([page.waitForURL("**/checkout/success**"), page.click('button:has-text("Simulate successful payment")')]);
 await seen(page, "Payment successful");
 const code = payUrl.match(/PL-\d+/)[0];
+
+// 4b. second order via Cash on Delivery goes straight to success
+// (UI add-to-cart is covered in step 3; use the real cart API here.)
+await page.goto(BASE + "/products");
+await page.waitForLoadState("domcontentloaded");
+const macroId = await page.evaluate(async () => {
+  const r = await fetch("/api/products?limit=60");
+  const j = await r.json();
+  const m = j.items.find((p) => p.slug === "macro-pro");
+  const add = await fetch("/api/cart", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "add", id: m.id, qty: 1, variant: "Standard" }),
+  });
+  return add.ok;
+});
+ok("macro added via cart API", macroId === true);
+await page.goto(BASE + "/checkout", { waitUntil: "domcontentloaded" });
+await seen(page, "Shipping address");
+await page.fill('input[name="full_name"]', "E2E Tester");
+await page.fill('input[name="phone"]', "+212600000000");
+await page.fill('input[name="line1"]', "12 Rue Test");
+await page.fill('input[name="city"]', "Rabat");
+await page.check('input[name="payment_method"][value="cod"]');
+await Promise.all([page.waitForURL("**/checkout/success**"), page.click('button:has-text("pay on delivery")')]);
+await seen(page, "Order placed!");
+// saved-address + order-detail pages render
+await page.goto(BASE + "/account/addresses");
+await seen(page, "Saved addresses");
+await page.goto(BASE + "/account/orders");
+await seen(page, code);
 
 // 5. orders + balance top-up
 await page.goto(BASE + "/account/orders");
@@ -91,7 +128,7 @@ await page.fill('.composer input[name="text"]', "More info");
 await page.click('.composer button:has-text("Send")');
 await seen(page, "More info");
 await page.goto(BASE + "/reviews");
-await page.fill('input[name="title"]', "E2E review");
+await page.fill('input[name="title"]', "E2E review " + stamp);
 await page.fill('textarea[name="text"]', "Great lens, e2e approved.");
 await page.click('button:has-text("Submit for moderation")');
 await seen(page, "moderation");
@@ -114,19 +151,29 @@ await seen(admin, "Admin reply here");
 await page.goto(ticketUrl);
 await seen(page, "Admin reply here");
 await admin.goto(BASE + "/admin/reviews");
-await admin.click('button:has-text("Approve")');
-await seen(admin, "live");
+// Approve this run's review (unique title) and wait until its card flips to live.
+await admin.locator(".card", { hasText: "E2E review " + stamp }).getByRole("button", { name: "Approve" }).click();
+await admin.waitForFunction(
+  (t) => {
+    const cards = [...document.querySelectorAll(".card")];
+    const c = cards.find((el) => (el.textContent || "").includes("E2E review " + t));
+    return !!c && (c.textContent || "").includes("live");
+  },
+  stamp,
+  { timeout: 20000 }
+);
+ok("review approved", true);
 await page.goto(BASE + "/reviews");
-await seen(page, "E2E review");
+await seen(page, "E2E review " + stamp);
 await admin.goto(BASE + "/admin/products");
-await admin.fill('input[name="name"]', "E2E Test Lens");
-await admin.fill('input[name="slug"]', "e2e-test-lens");
+await admin.fill('input[name="name"]', "E2E Test Lens " + stamp);
+await admin.fill('input[name="slug"]', "e2e-test-lens-" + stamp);
 await admin.fill('input[name="price"]', "9.99");
 await admin.fill('input[name="stock"]', "5");
 await admin.click('button:has-text("Save product")');
-await seen(admin, "E2E Test Lens");
+await seen(admin, "E2E Test Lens " + stamp);
 await page.goto(BASE + "/products");
-await seen(page, "E2E Test Lens");
+await seen(page, "E2E Test Lens " + stamp);
 
 // 8. reseller apply -> approve -> buy from balance
 await page.goto(BASE + "/account/reseller");
@@ -142,7 +189,8 @@ await seen(page, "your price");
 await page.goto(BASE + "/");
 await page.click(".rail .rrow .iconbtn");
 await page.reload();
-ok("dark mode persisted", await page.evaluate(() => document.documentElement.dataset.scheme === "dark"));
+await page.waitForFunction(() => document.documentElement.dataset.scheme === "dark", null, { timeout: 10000 });
+ok("dark mode persisted", true);
 
 // 10. maintenance gates public, spares admin
 await admin.goto(BASE + "/admin/settings");

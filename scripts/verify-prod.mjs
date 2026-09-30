@@ -1,0 +1,42 @@
+/** Production smoke: register -> cart -> checkout -> pay -> orders. Cleans up after itself via DB. */
+import { chromium } from "playwright";
+const BASE = "https://lensflow-store.netlify.app";
+const EMAIL = `prodcheck-${Date.now().toString(36)}@x.shop`;
+let n = 0;
+const ok = (name, cond) => {
+  n++;
+  if (!cond) throw new Error("FAILED: " + name);
+  console.log("ok:", name);
+};
+const seen = async (page, text) => {
+  await page.getByText(text).first().waitFor({ timeout: 15000 });
+};
+const browser = await chromium.launch();
+const ctx = await browser.newContext();
+const page = await ctx.newPage();
+await page.goto(BASE + "/register");
+await page.fill('input[name="name"]', "ProdCheck");
+await page.fill('input[name="email"]', EMAIL);
+await page.fill('input[name="password"]', "password123");
+await Promise.all([page.waitForURL("**/account"), page.click('button:has-text("Create account")')]);
+await seen(page, "Completed orders");
+ok("prod register", true);
+await page.goto(BASE + "/products");
+await page.locator(".pcard", { hasText: "0.67X Wide Lens" }).locator(".addbtn").click();
+await page.waitForFunction(() => document.querySelector("[data-cart-count]")?.textContent?.trim() === "1");
+ok("prod add-to-cart", true);
+await page.goto(BASE + "/checkout");
+await page.fill('input[name="coupon"]', "SAVE10");
+await page.click('button:has-text("Apply")');
+await seen(page, "SAVE10");
+await Promise.all([page.waitForURL("**/pay/**"), page.click('button:has-text("Place order")')]);
+const code = page.url().match(/PL-\d+/)[0];
+await Promise.all([page.waitForURL("**/checkout/success**"), page.click('button:has-text("Simulate successful payment")')]);
+await seen(page, "Payment successful");
+ok(`prod order ${code} paid`, true);
+await page.goto(BASE + "/account/orders");
+await seen(page, code);
+ok("prod order history", true);
+console.log("PROD_EMAIL=" + EMAIL);
+console.log(`\nALL ${n} PROD CHECKS PASSED`);
+await browser.close();
