@@ -1,0 +1,7 @@
+# LensFlow on Netlify — Next.js is supported natively, no plugin required.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
