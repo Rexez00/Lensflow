@@ -22,11 +22,12 @@ const seen = async (page, text) => { await page.getByText(text).first().waitFor(
 // Neon free-tier compute can cold-start; retry once on 500 before failing.
 const gotoOk = async (page, path) => {
   for (let i = 0; i < 3; i++) {
-    const r = await page.goto(BASE + path);
-    if (r.status() === 200) return r;
+    const r = await page.goto(BASE + path).catch(() => null);
+    if (r && r.status() === 200) return r;
     await page.waitForTimeout(4000);
   }
-  const r = await page.goto(BASE + path);
+  const r = await page.goto(BASE + path).catch(() => null);
+  if (!r) throw new Error("navigation failed for " + path);
   return r;
 };
 
