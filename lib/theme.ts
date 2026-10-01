@@ -18,19 +18,19 @@ export type SiteTheme = {
 };
 
 export const THEME_DEFAULTS: SiteTheme = {
-  store_name: "PocketLens",
-  announcement: "Free tracked shipping on every lens order",
+  store_name: "Simple Lens",
+  announcement: "Free tracked shipping across Morocco on every lens order",
   logo_url: "",
   hero_title: "Unleash\nyour creativity",
   hero_subtitle:
-    "PocketLens makes quality mobile fisheye lenses for a cool, nostalgic aesthetic and macro lenses for professional zoom-ins.",
+    "Simple Lens makes quality mobile fisheye lenses for a cool, nostalgic aesthetic and macro lenses for professional zoom-ins. Shipped anywhere in Morocco.",
   hero_cta_text: "Shop Now",
   hero_image_url: "",
   hero_image_emoji: "📷",
-  trust_1: "Free tracked shipping",
+  trust_1: "Cash on delivery across Morocco",
   trust_2: "Fits almost any phone",
   trust_3: "One-year guarantee",
-  footer_tagline: "Pocket-size fisheye and macro lenses for your phone.",
+  footer_tagline: "Pocket-size fisheye and macro lenses for your phone. Based in Morocco, priced in MAD.",
   accent_color: "#7C2DFF",
   featured_title: "Featured Lenses",
 };

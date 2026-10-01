@@ -12,10 +12,15 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const name = await getSetting("store_name", "PocketLens");
-    return { title: name };
+    const name = await getSetting("store_name", "Simple Lens");
+    const tagline = "Pocket-size fisheye and macro lenses for your phone. Morocco, priced in MAD.";
+    return {
+      title: { default: name, template: `%s · ${name}` },
+      description: tagline,
+      openGraph: { title: name, description: tagline, type: "website", locale: "fr_MA" },
+    };
   } catch {
-    return { title: "PocketLens" };
+    return { title: "Simple Lens", description: "Pocket-size phone lenses. Morocco, priced in MAD." };
   }
 }
 

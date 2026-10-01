@@ -47,7 +47,7 @@ export default async function AdminShipping() {
           <div className="bgrid2">
             <div className="field"><label>Name</label><input className="input" name="name" required placeholder="Standard" /></div>
             <div className="field"><label>ETA</label><input className="input" name="eta" placeholder="3–5 days" /></div>
-            <div className="field"><label>Price (USD)</label><input className="input" name="price" type="number" min="0" step="0.01" defaultValue="0" /></div>
+            <div className="field"><label>Price (MAD)</label><input className="input" name="price" type="number" min="0" step="0.01" defaultValue="0" /></div>
             <div className="field"><label>Description</label><input className="input" name="description" placeholder="Tracked 3–5 business days" /></div>
           </div>
           <button className="btn" style={{ marginTop: 12 }}>Save method</button>

@@ -44,13 +44,30 @@ function setCartCookie(token: string) {
   });
 }
 
+export { setCartCookie };
+
 /** Read-only: safe in Server Components. Returns null when no cart yet. */
 export async function readCart(): Promise<Cart | null> {
   const token = cookies().get(CART_COOKIE)?.value;
-  if (!token) return null;
-  const rows = await db()`SELECT * FROM carts WHERE token = ${token}`;
-  if (!rows[0]) return null;
-  return rowToCart(rows[0] as Row);
+  if (token) {
+    const rows = await db()`SELECT * FROM carts WHERE token = ${token}`;
+    if (rows[0]) return rowToCart(rows[0] as Row);
+  }
+  // Logged-in users without (or with a stale) cart cookie: fall back to the
+  // latest user-bound cart so Server Components agree with /api/cart, which
+  // resolves logged-in carts by user id. (E.g. cookies cleared mid-session.)
+  try {
+    const { auth } = await import("@/auth");
+    const session = await auth();
+    const uid = (session?.user as { id?: string } | undefined)?.id;
+    if (uid) {
+      const rows = await db()`SELECT * FROM carts WHERE user_id = ${Number(uid)} ORDER BY updated DESC LIMIT 1`;
+      if (rows[0]) return rowToCart(rows[0] as Row);
+    }
+  } catch {
+    /* anonymous or DB down — no cart */
+  }
+  return null;
 }
 
 /** Read-write: use ONLY in Route Handlers and Server Actions. */

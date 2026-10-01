@@ -46,8 +46,8 @@ export default async function Products({ searchParams }: { searchParams: Record<
   return (
     <>
       <div className="crumbs"><a href="/">Home</a> / <b>Products</b></div>
-      <h1 style={{ fontSize: 30, letterSpacing: "-.02em" }}>All products</h1>
-      <p style={{ color: "var(--sa-ink-soft)", fontSize: 14, margin: "6px 0 20px" }}>Pocket-size glass for every phone.</p>
+      <h1 style={{ fontSize: 30, letterSpacing: "-.02em" }}>Shop</h1>
+      <p style={{ color: "var(--sa-ink-soft)", fontSize: 14, margin: "6px 0 20px" }}>Phone lenses, priced in MAD and shipped across Morocco.</p>
       <div className="layout">
         <aside className="filters card">
           <form method="get" action="/products">
@@ -97,7 +97,30 @@ export default async function Products({ searchParams }: { searchParams: Record<
               </nav>
             )}
             </>
-          ) : <div className="empty">No products match — try clearing a filter.</div>}
+          ) : (
+            <div className="card" style={{ padding: "60px 28px", textAlign: "center" }}>
+              <div style={{ fontSize: 44 }} aria-hidden>◎</div>
+              <h3 style={{ fontSize: 19, marginTop: 12 }}>
+                {data.total === 0 && !searchParams.q && !searchParams.cat && !searchParams.min && !searchParams.max
+                  ? "Our shelves are being stocked"
+                  : searchParams.cat
+                    ? "Nothing in this category yet"
+                    : "No products match your filters"}
+              </h3>
+              <p style={{ fontSize: 14, color: "var(--sa-ink-soft)", margin: "8px auto 20px", maxWidth: 420 }}>
+                {data.total === 0 && !searchParams.q && !searchParams.cat && !searchParams.min && !searchParams.max
+                  ? "Simple Lens is preparing its first drop of phone lenses. Check back soon — new arrivals land here first."
+                  : searchParams.cat
+                    ? "This category has no products right now. Try another category or clear the filters to see everything."
+                    : "Try a different keyword, widen the price range, or clear the filters to see everything."}
+              </p>
+              {searchParams.cat || searchParams.q || searchParams.min || searchParams.max || searchParams.stock ? (
+                <a className="btn ghost" href="/products">Clear all filters</a>
+              ) : (
+                <a className="btn ghost" href="/">Back to home</a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>

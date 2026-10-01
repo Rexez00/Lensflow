@@ -27,6 +27,26 @@ export default function ProductManager({ prods, cats }: { prods: P[]; cats: { id
   const [onlyLow, setOnlyLow] = useState(false);
   const set = (k: string, v: string | number | boolean) => setF((s) => ({ ...s, [k]: v }));
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+
+  const uploadFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadErr("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/admin/uploads", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Upload failed.");
+      set("image", j.url);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
   const filtered = useMemo(() => {
     return prods.filter((p) => {
       if (onlyLow && p.stock >= 10) return false;
@@ -133,15 +153,25 @@ export default function ProductManager({ prods, cats }: { prods: P[]; cats: { id
               <div className="bgrid2">
                 <div className="field"><label>Name</label><input className="input" name="name" required value={f.name} onChange={(e) => { set("name", e.target.value); if (!f.id) set("slug", autoSlug(e.target.value)); }} /></div>
                 <div className="field"><label>Slug</label><input className="input" name="slug" required value={f.slug} onChange={(e) => set("slug", e.target.value)} /></div>
-                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Image URL</label><input className="input" name="image_url" value={f.image} onChange={(e) => set("image", e.target.value)} placeholder="https://…" /></div>
+                <div className="field" style={{ gridColumn: "1 / -1" }}><label>Image URL</label><input className="input" name="image_url" value={f.image} onChange={(e) => set("image", e.target.value)} placeholder="https://…" />
+                  <div style={{ marginTop: 8, fontSize: 13 }}>
+                    <label className="btn ghost" style={{ padding: "8px 14px", cursor: "pointer" }}>
+                      {uploading ? "Uploading…" : "Upload image"}
+                      <input type="file" accept=".jpg,.jpeg,.png,.webp" hidden disabled={uploading}
+                        onChange={(e) => { uploadFile(e.target.files?.[0]); e.target.value = ""; }} />
+                    </label>{" "}
+                    <span style={{ color: "var(--sa-ink-soft)" }}>JPG/PNG/WebP, max 2 MB. On serverless hosting paste a URL instead.</span>
+                    {uploadErr ? <span role="alert" style={{ color: "#C62828", display: "block", marginTop: 6 }}>{uploadErr}</span> : null}
+                  </div>
+                </div>
                 <div className="field"><label>Subtitle</label><input className="input" name="sub" value={f.sub} onChange={(e) => set("sub", e.target.value)} /></div>
                 <div className="field"><label>Badge (e.g. Bestseller, New, -20%)</label><input className="input" name="badge" value={f.badge} onChange={(e) => set("badge", e.target.value)} placeholder="Optional" /></div>
                 <div className="field"><label>Category</label>
                   <select className="input" name="cat_id" value={f.cat} onChange={(e) => set("cat", Number(e.target.value))}>
                     <option value={0}>—</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select></div>
-                <div className="field"><label>Price (USD)</label><input className="input" name="price" type="number" min="0" step="0.01" required value={f.price} onChange={(e) => set("price", e.target.value)} /></div>
-                <div className="field"><label>Compare price (optional)</label><input className="input" name="old" type="number" min="0" step="0.01" value={f.old} onChange={(e) => set("old", e.target.value)} /></div>
+                <div className="field"><label>Price (MAD)</label><input className="input" name="price" type="number" min="0" step="0.01" required value={f.price} onChange={(e) => set("price", e.target.value)} /></div>
+                <div className="field"><label>Compare price (MAD, optional)</label><input className="input" name="old" type="number" min="0" step="0.01" value={f.old} onChange={(e) => set("old", e.target.value)} /></div>
                 <div className="field"><label>Stock</label><input className="input" name="stock" type="number" min="0" value={f.stock} onChange={(e) => set("stock", Number(e.target.value))} /></div>
               </div>
             </div>

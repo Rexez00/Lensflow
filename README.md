@@ -1,4 +1,4 @@
-# LensFlow — Next.js + PostgreSQL open-source commerce
+# Simple Lens — Next.js + PostgreSQL open-source commerce
 
 Full-stack e-commerce: storefront, customer accounts, admin panel, flexible payments.
 Backend: self-contained Next.js + PostgreSQL (your own open-source code — no licence
@@ -40,6 +40,7 @@ npm run dev             # http://localhost:3000
 ```
 
 Seed admin: `ADMIN_EMAIL` / `ADMIN_PASSWORD` (defaults `admin@lensflow.shop` / `admin123`).
+Fresh installs start with an EMPTY catalog (no products, no fake reviews/orders) — add real products at `/admin/products`.
 
 ## What the store does (all real, backend-connected)
 
@@ -114,7 +115,7 @@ frontend→backend over same-origin `/api/*` + Server Actions (no CORS setup).
 - Sessions are JWT (stateless) — no server restart logout tracking; 30-day expiry.
 - Subscription billing is record-level (subscribe/cancel + renew dates), same as the
   Flask version; Stripe Billing for recurring charges is not wired.
-- No email sending (no password reset flow); no 2FA/Discord login (as in the source app).
-- Prices are stored in USD cents; COD is collected in cash at delivery.
+- No email sending until `RESEND_API_KEY` (+ `EMAIL_FROM`) is set; password-reset and order emails log to the server console instead.
+- Prices are stored in MAD cents; COD is collected in cash at delivery.
 - `npm run build` needs no live database: all data pages are `force-dynamic` and the
   layout degrades to a clear error card if `DATABASE_URL` is missing.

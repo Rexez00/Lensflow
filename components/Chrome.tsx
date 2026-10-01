@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
-export const money = (c: number) => "$" + (c / 100).toFixed(2);
+import { money } from "@/lib/format";
 const LENS = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <circle cx="12" cy="12" r="8" />
@@ -16,9 +16,10 @@ type Line = { id: number; name: string; slug: string; variant: string; qty: numb
 
 const NAV = [
   { href: "/", label: "Discover", nav: "home" },
-  { href: "/products", label: "Products", nav: "products" },
-  { href: "/reviews", label: "Reviews", nav: "reviews" },
+  { href: "/products", label: "Shop", nav: "products" },
+  { href: "/about", label: "About", nav: "about" },
   { href: "/faq", label: "FAQ", nav: "faq" },
+  { href: "/contact", label: "Contact", nav: "contact" },
 ];
 
 export default function Chrome({
@@ -128,7 +129,7 @@ export default function Chrome({
         <a className="brand" href="/">{logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt={storeName} style={{ height: 28, maxWidth: 160, objectFit: "contain" }} />
-        ) : <>{storeName.slice(0, 6).toUpperCase()}<em>{storeName.slice(6, 7) || "O"}</em>{storeName.slice(7).toUpperCase() || "W"}</>}</a>
+        ) : <>{storeName}</>}</a>
         {NAV.map((n) => (
           <a key={n.href} className={"rlink" + (active(n.nav) ? " active" : "")} href={n.href}>{n.label}</a>
         ))}
@@ -175,10 +176,10 @@ export default function Chrome({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoUrl} alt={storeName} style={{ height: 30, marginBottom: 10 }} />
               ) : <span className="brand" style={{ padding: "0 0 10px", display: "block" }}>{storeName}</span>}
-                <p style={{ fontSize: 13, color: "var(--sa-ink-soft)" }}>{footerTagline || "Pocket-size fisheye and macro lenses for your phone."}</p></div>
-              <div><h4>Shop</h4><a href="/">Home</a><a href="/products">Products</a><a href="/reviews">Reviews</a><a href="/status">Status</a></div>
-              <div><h4>Account</h4><a href="/account">Dashboard</a><a href="/account/orders">Orders</a><a href="/account/tickets">Tickets</a></div>
-              <div><h4>Legal</h4><a href="/legal">Terms</a><a href="/blog">Blog</a>{user?.role === "admin" ? <a href="/admin">Admin</a> : null}</div>
+                <p style={{ fontSize: 13, color: "var(--sa-ink-soft)" }}>{footerTagline || "Pocket-size fisheye and macro lenses for your phone. Morocco, priced in MAD."}</p></div>
+              <div><h4>Shop</h4><a href="/">Home</a><a href="/products">Shop</a><a href="/about">About</a><a href="/status">Status</a></div>
+              <div><h4>Account</h4><a href="/account">Dashboard</a><a href="/account/orders">Orders</a><a href="/account/tickets">Tickets</a><a href="/contact">Contact</a></div>
+              <div><h4>Help</h4><a href="/faq">FAQ</a><a href="/shipping">Shipping</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/legal">Terms</a><a href="/blog">Blog</a>{user?.role === "admin" ? <a href="/admin">Admin</a> : null}</div>
             </div>
             <div className="base"><span>© 2026 {storeName}. All rights reserved.</span><span>Secure checkout</span></div>
           </footer>

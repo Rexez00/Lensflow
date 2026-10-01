@@ -30,7 +30,7 @@ export default async function Affiliate({ searchParams }: { searchParams: { ok?:
       </div>
       <div className="card" style={{ padding: 20, marginBottom: 14 }}><h3>Request payout</h3>
         <form action={payoutAction} style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-          <input className="input" name="amount" type="number" min="1" step="0.01" placeholder="Amount USD" style={{ maxWidth: 180 }} />
+          <input className="input" name="amount" type="number" min="1" step="0.01" placeholder="Amount MAD" style={{ maxWidth: 180 }} />
           <input className="input" name="details" placeholder="Payout details (e.g. wallet)" style={{ flex: 1, minWidth: 200 }} />
           <button className="btn">Request</button>
         </form></div>

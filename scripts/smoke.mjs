@@ -33,7 +33,7 @@ checks.push(["pdp renders w/ variants", pdp.status === 200 && pdp.body.includes(
 const missPage = await get("/product/no-such-thing");
 checks.push(["missing product 404", missPage.status === 404]);
 const listing = await get("/products");
-checks.push(["listing renders", listing.status === 200 && listing.body.includes("All products")]);
+checks.push(["listing renders", listing.status === 200 && listing.body.includes(">Shop<") && listing.body.includes("MAD")]);
 const co = await get("/checkout");
 checks.push(["checkout redirects to cart when empty (307/empty)", [200, 307].includes(co.status)]);
 let fail = 0;

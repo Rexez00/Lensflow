@@ -296,8 +296,11 @@ export async function saveSettings(form: FormData) {
   await admin();
   const sql = db();
   const pairs: [string, string][] = [
-    ["store_name", String(form.get("store_name") || "PocketLens").slice(0, 80)],
+    ["store_name", String(form.get("store_name") || "Simple Lens").slice(0, 80)],
     ["announcement", String(form.get("announcement") || "").slice(0, 200)],
+    ["contact_email", String(form.get("contact_email") || "").slice(0, 120)],
+    ["contact_phone", String(form.get("contact_phone") || "").slice(0, 40)],
+    ["currency", "MAD"],
     ["maintenance", form.get("maintenance") ? "1" : "0"],
   ];
   for (const [k, v] of pairs) {
@@ -320,7 +323,7 @@ export async function saveDesign(form: FormData) {
   const sql = db();
   const get = (k: string, max = 500) => String(form.get(k) || "").slice(0, max);
   const pairs: [string, string][] = [
-    ["store_name", get("store_name", 80) || "PocketLens"],
+    ["store_name", get("store_name", 80) || "Simple Lens"],
     ["announcement", get("announcement", 200)],
     ["logo_url", get("logo_url", 1000)],
     ["hero_title", get("hero_title", 200) || "Unleash\nyour creativity"],

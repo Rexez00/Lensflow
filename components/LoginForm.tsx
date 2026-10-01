@@ -19,6 +19,7 @@ export default function LoginForm({ next }: { next: string }) {
         <button className="btn" style={{ width: "100%" }}>Sign in</button>
       </form>
       <p style={{ fontSize: 13, marginTop: 14 }}>New here? <a href="/register" style={{ color: "var(--sa-accent)" }}>Create an account</a></p>
+      <p style={{ fontSize: 13, marginTop: 6 }}><a href="/forgot-password" style={{ color: "var(--sa-ink-soft)" }}>Forgot your password?</a></p>
     </div>
   );
 }

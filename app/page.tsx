@@ -51,7 +51,18 @@ export default async function Home() {
           ) : null}
         </section>
         <div className="rowhead"><h2>{String(theme.featured_title || "Featured Lenses")}</h2><a href="/products">Show all</a></div>
-        <div className="feat">{feat.map((p) => <ProductCard key={p.id as number} p={card(p)} />)}</div>
+        {feat.length ? (
+          <div className="feat">{feat.map((p) => <ProductCard key={p.id as number} p={card(p)} />)}</div>
+        ) : (
+          <div className="card" style={{ padding: "44px 28px", textAlign: "center" }}>
+            <div style={{ fontSize: 40 }} aria-hidden>◎</div>
+            <h3 style={{ fontSize: 18, marginTop: 10 }}>New lenses are on their way</h3>
+            <p style={{ fontSize: 14, color: "var(--sa-ink-soft)", margin: "8px auto 18px", maxWidth: 420 }}>
+              Our first drop is being prepared. Check back soon — or browse the full catalogue the moment it lands.
+            </p>
+            <a className="btn" href="/products">Browse the shop</a>
+          </div>
+        )}
         <div className="rowhead"><h2>Why photographers trust us</h2></div>
         <div className="feat">
           <div className="card" style={{ padding: 20 }}><h3>Fisheye for the aesthetic</h3><p style={{ fontSize: 13, color: "var(--sa-ink-soft)", marginTop: 6 }}>Sweeping distorted curls and dreamy wide frames.</p></div>
@@ -69,7 +80,7 @@ export default async function Home() {
         <div className="rowhead"><h2>Lens Categories</h2><a href="/products">Show all</a></div>
         <div className="cats">{cats.map((c) => <a key={c.id as number} href={"/products?cat=" + c.slug}>{c.name as string}</a>)}</div>
         <div className="rowhead"><h2>Top Picks</h2><a href="/products">Show all</a></div>
-        {picks.map((p) => (
+        {picks.length ? picks.map((p) => (
           <a className="pick" key={p.id as number} href={"/product/" + (p.slug as string)}>
             <div className="thumb" style={{ overflow: "hidden" }}>
               {String((p as Row).image_url ?? "") ? (
@@ -79,7 +90,11 @@ export default async function Home() {
             </div>
             <div><h3>{p.name as string}</h3><small>{(p.sub as string) ?? ""}</small><br /><b>{money(p.price_cents as number)}</b></div>
           </a>
-        ))}
+        )) : (
+          <div className="card" style={{ padding: "22px 18px", textAlign: "center", fontSize: 13, color: "var(--sa-ink-soft)" }}>
+            No picks yet — our curators are still shooting.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ node_modules/
 .env*.local
 *.db
 .neon
+public/uploads/*
 
 .agents/
 tsconfig.tsbuildinfo
@@ -11,3 +12,4 @@ tsconfig.tsbuildinfo
 .netlify/
 
 *.log
+!public/uploads/.gitkeep

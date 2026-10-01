@@ -23,7 +23,7 @@ export default async function Balance() {
         </div>
         <div className="card" style={{ padding: 22 }}><h3>Top up</h3>
           <form action={topupAction} style={{ marginTop: 12 }}>
-            <div className="field"><label>Amount (USD)</label>
+            <div className="field"><label>Amount (MAD)</label>
               <input className="input" name="amount" type="number" min="1" max="500" step="1" defaultValue="10" /></div>
             <button className="btn" style={{ width: "100%" }}>Continue to payment</button>
           </form></div>

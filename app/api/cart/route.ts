@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { attachCartToUser, enrichCart, getOrCreateCart, readCart, saveCart } from "@/lib/cart";
+import { cookies } from "next/headers";
+import { attachCartToUser, enrichCart, getOrCreateCart, readCart, saveCart, setCartCookie, CART_COOKIE } from "@/lib/cart";
 import { db , type Row} from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,13 @@ async function resolveCart() {
     const rows = await db()`SELECT * FROM carts WHERE user_id = ${Number(uid)} ORDER BY updated DESC LIMIT 1`;
     if (rows[0]) {
       const r = rows[0] as Row;
+      // Heal a missing/stale cart cookie so Server Components (cookie-based
+      // readCart) agree with this user-id based resolution.
+      try {
+        if (cookies().get(CART_COOKIE)?.value !== r.token) setCartCookie(r.token as string);
+      } catch {
+        /* cookie store unavailable */
+      }
       return {
         id: r.id as number, token: r.token as string, user_id: r.user_id as number,
         items: (r.items as { id: number; qty: number; variant: string }[]) ?? [], coupon: (r.coupon as string) ?? "",
